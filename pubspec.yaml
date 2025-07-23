@@ -30,6 +30,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  shared_preferences: ^2.0.15 # Use the latest version
+  # Add flutter_secure_storage for the token
+  # flutter_secure_storage: ^8.0.0 # Use the latest version
   uuid: ^4.3.3
   path_provider: ^2.1.2
   # The following adds the Cupertino Icons font to your application.

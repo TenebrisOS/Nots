@@ -1,7 +1,7 @@
 # Nots
 > [!WARNING]
 > The project is still under unstable development. Expect bugs
-<div align="center">
+<div align="left">
 <img src=".github/assets/logo.jpg" style="width:30%;">
 </div>
 Open source noting android app with self host encrypted online storage.

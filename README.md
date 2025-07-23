@@ -25,7 +25,7 @@ It will later on feature self-hosted encrypted storage and colorful themes.
 - [ ] Linux / Windows
 
 ## Contributions
-Contributions are highly encouraged and welcome. Please feel free to submit issues, pull requests, or discuss ideas. For further discussion, contact [TenebrisOS](deftonish@proton.me)
+Contributions are highly encouraged and welcome. Please feel free to submit issues, pull requests, or discuss ideas. For further discussion, contact deftonish@proton.me
 
 ## Donations
 - If you wish to help supporting my work, consider donating, small funds are always so caring.

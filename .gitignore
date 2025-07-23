@@ -116,3 +116,5 @@ lib/generated_plugin_registrant.dart
 *.tmp
 *.swp
 
+/test/
+/macos/

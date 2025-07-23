@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'notes_system.dart';
+// Make sure these import paths are correct for your project structure
+import 'notes_system.dart'; // Assuming NoteMetadata might be implicitly defined here or in note_storage.dart
 import 'note_storage.dart';
 
 void main() => runApp(const App());
@@ -37,7 +38,6 @@ class _NavigationExampleState extends State<NavigationExample> {
   TextEditingController();
   bool serverHostingEnabled = false;
 
-  // ---- Note Storage Integration ----
   final NoteTxtStorageService _noteStorage = NoteTxtStorageService();
   List<NoteMetadata> _noteMetadatas = [];
   bool _isLoadingNotes = true;
@@ -62,14 +62,15 @@ class _NavigationExampleState extends State<NavigationExample> {
     });
   }
 
+  // MODIFIED _showAddNoteDialog TO CORRECTLY REFRESH AFTER SAVE
   void _showAddNoteDialog() {
     final titleController = TextEditingController();
     final contentController = TextEditingController();
-    bool isSaving = false;
+    // No need for isSaving here as async work is moved to .then()
 
-    showDialog<bool>(
+    showDialog<bool>( // Expect a boolean result
       context: context,
-      barrierDismissible: !isSaving,
+      barrierDismissible: true, // Allow dismissal by tapping outside, can be set to false if needed
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('Add New Note'),
@@ -96,57 +97,62 @@ class _NavigationExampleState extends State<NavigationExample> {
           actions: [
             TextButton(
               onPressed: () {
-                if (!isSaving) {
-                  Navigator.of(dialogContext).pop(false);
-                }
+                Navigator.of(dialogContext).pop(false); // Pop dialog, return false (not saved)
               },
               child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () async {
-                if (isSaving) return;
-
+              onPressed: () { // No async here, just validation and pop
                 final title = titleController.text.trim();
                 final content = contentController.text.trim();
 
                 if (title.isEmpty && content.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  // Show SnackBar using the main page's context or dialogContext.
+                  // Using this.context (main page's) for SnackBar is generally safer after pop.
+                  // However, if validation fails *before* pop, dialogContext is fine.
+                  ScaffoldMessenger.of(this.context).showSnackBar( // Or use dialogContext if preferred for pre-pop messages
                     const SnackBar(
                         content: Text('Title or content cannot be empty.')),
                   );
-                  return;
+                  return; // Don't pop, let user correct
                 }
-
-                isSaving = true;
+                // If valid, pop the dialog and pass 'true'
                 Navigator.of(dialogContext).pop(true);
-
-                try {
-                  await _noteStorage.createNote(
-                    title: title.isEmpty ? "Untitled Note" : title,
-                    content: content,
-                  );
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error saving note: $e')),
-                    );
-                  }
-                } finally {
-                  isSaving = false;
-                }
               },
               child: const Text('Save'),
             ),
           ],
         );
       },
-    ).then((savedSuccessfully) async {
+    ).then((savedSuccessfully) async { // This block executes AFTER the dialog is popped
+      if (!mounted) return; // Ensure widget is still mounted
+
+      if (savedSuccessfully == true) {
+        // Only proceed if 'Save' was pressed and returned true
+        try {
+          // Perform the actual save operation here
+          await _noteStorage.createNote(
+            title: titleController.text.trim().isEmpty ? "Untitled Note" : titleController.text.trim(),
+            content: contentController.text.trim(),
+          );
+
+          // AFTER successful save, load the notes again
+          if (mounted) { // Re-check mounted status before calling async state update
+            await _loadNotesMetadata();
+          }
+
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error saving note: $e')),
+            );
+          }
+        }
+      }
+
+      // Dispose controllers regardless of whether save was successful or dialog was cancelled
       titleController.dispose();
       contentController.dispose();
-
-      if (savedSuccessfully == true && mounted) {
-        await _loadNotesMetadata();
-      }
     });
   }
 
@@ -202,7 +208,7 @@ class _NavigationExampleState extends State<NavigationExample> {
 
     if (confirmDelete == true && mounted) {
       await _noteStorage.deleteNote(noteId);
-      await _loadNotesMetadata();
+      await _loadNotesMetadata(); // Refresh after delete
     }
   }
 
@@ -218,56 +224,82 @@ class _NavigationExampleState extends State<NavigationExample> {
     final isSmallScreen = MediaQuery.of(context).size.width < 600;
 
     final pages = [
+      // Notes Page (Home)
       _isLoadingNotes
           ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))
           : _noteMetadatas.isEmpty
           ? Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Text(
-            'No notes yet. Tap + to add one!',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.headlineSmall?.copyWith(
-                fontFamily: 'Merriweather',
-                color: theme.hintColor.withOpacity(0.7)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '"The faintest ink is more powerful than the strongest memory." ',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                    fontFamily: 'Merriweather',
+                    color: theme.hintColor.withOpacity(0.7)),
+              ),
+              const SizedBox(height: 8.0),
+              Text(
+                "- Chinese Proverb", // Or Confucius (attributed)
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    fontFamily: 'Merriweather',
+                    color: theme.hintColor.withOpacity(0.6)),
+              )
+            ],
           ),
         ),
       )
-          : RefreshIndicator(
-        onRefresh: _loadNotesMetadata,
-        child: ListView.builder(
-          padding: const EdgeInsets.all(8.0),
-          itemCount: _noteMetadatas.length,
-          itemBuilder: (context, index) {
-            final metadata = _noteMetadatas[index];
-            return Card(
-              margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 8.0),
-              child: ListTile(
-                title: Text(
-                  metadata.title.isEmpty ? "Untitled Note" : metadata.title,
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          : SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _loadNotesMetadata,
+          child: ListView.builder(
+            padding: const EdgeInsets.only(
+              top: 16.0, // Space from top status bar
+              left: 8.0,
+              right: 8.0,
+              bottom: 8.0,
+            ),
+            itemCount: _noteMetadatas.length,
+            itemBuilder: (context, index) {
+              final metadata = _noteMetadatas[index];
+              return Card(
+                margin: const EdgeInsets.symmetric(
+                    vertical: 6.0, horizontal: 8.0),
+                child: ListTile(
+                  title: Text(
+                    metadata.title.isEmpty
+                        ? "Untitled Note"
+                        : metadata.title,
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    'Updated: ${metadata.updatedAt.day}/${metadata.updatedAt.month}/${metadata.updatedAt.year} ${metadata.updatedAt.hour}:${metadata.updatedAt.minute.toString().padLeft(2, '0')}',
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onTap: () => _openNoteDetails(metadata.id),
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete_outline,
+                        color: theme.colorScheme.error
+                            .withOpacity(0.8)),
+                    tooltip: 'Delete Note',
+                    onPressed: () => _deleteNote(metadata.id),
+                  ),
                 ),
-                subtitle: Text(
-                  'Updated: ${metadata.updatedAt.day}/${metadata.updatedAt.month}/${metadata.updatedAt.year} ${metadata.updatedAt.hour}:${metadata.updatedAt.minute.toString().padLeft(2, '0')}',
-                  style: theme.textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                onTap: () => _openNoteDetails(metadata.id),
-                trailing: IconButton(
-                  icon: Icon(Icons.delete_outline,
-                      color: theme.colorScheme.error.withOpacity(0.8)),
-                  tooltip: 'Delete Note',
-                  onPressed: () => _deleteNote(metadata.id),
-                ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
+
       // Settings Page
       SafeArea(
         child: SingleChildScrollView(
@@ -276,7 +308,7 @@ class _NavigationExampleState extends State<NavigationExample> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Connectivity',
+              Text('Storage',
                   style: theme.textTheme.headlineSmall
                       ?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
@@ -288,41 +320,44 @@ class _NavigationExampleState extends State<NavigationExample> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // ----- SERVER HOSTING SECTION -----
                       Row(children: [
                         Expanded(
                             child: Text('Server hosting',
-                                style: theme.textTheme.titleMedium)),
+                                style: theme.textTheme.titleMedium?.copyWith(color: theme.disabledColor) // Style as disabled
+                            )),
                         Switch(
-                          value: serverHostingEnabled,
-                          onChanged: (bool value) {
-                            setState(() {
-                              serverHostingEnabled = value;
-                            });
-                          },
+                          value: false, // Keep it visually off
+                          onChanged: null, // Disable the switch
                         ),
                       ]),
+                      // "Server Host Address" input field (disabled)
                       const SizedBox(height: 12),
                       Text('Server Host Address:',
-                          style: serverHostingEnabled
-                              ? theme.textTheme.titleSmall
-                              : theme.textTheme.titleSmall
-                              ?.copyWith(color: theme.disabledColor)),
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(color: theme.disabledColor) // Style as disabled
+                      ),
                       const SizedBox(height: 8),
                       TextField(
-                        controller: _settingsTextFieldController,
-                        enabled: serverHostingEnabled,
+                        controller: _settingsTextFieldController, // Controller can remain
+                        enabled: false, // Disable the text field
                         decoration: InputDecoration(
-                          hintText: serverHostingEnabled
-                              ? 'e.g., http(s)://example.com:9999'
-                              : 'Disabled',
+                          hintText: 'Disabled', // Show disabled hint
                           border: const OutlineInputBorder(),
                           isDense: true,
-                          fillColor: serverHostingEnabled
-                              ? null
-                              : theme.disabledColor.withOpacity(0.05),
+                          fillColor: theme.disabledColor.withOpacity(0.05),
                           filled: true,
                         ),
                       ),
+                      Padding( // Unavailability note MOVED HERE - AFTER the TextField
+                        padding: const EdgeInsets.only(top: 8.0), // Added a bit more top padding for spacing from TextField
+                        child: Text(
+                          'This feature is currently unavailable.',
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: theme.disabledColor),
+                        ),
+                      ),
+                      // ----- END OF SERVER HOSTING SECTION -----
                     ],
                   ),
                 ),

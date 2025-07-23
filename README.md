@@ -12,6 +12,14 @@ It will later on feature self-hosted encrypted storage and colorful themes.
 - [ ] Online self-host server
 - [ ] Encrypted storing (local/online)
 
+## Galery
+<div align="left">
+<img src=".github/assets/sc6.png" style="width:30%;">
+</div>
+<div align="right">
+<img src=".github/assets/sc4.png" style="width:30%;">
+</div>
+
 ## Platforms Support
 - [x] Android
 - [ ] iOS (less probable)

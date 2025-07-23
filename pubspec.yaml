@@ -88,3 +88,31 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+  fonts:
+    - family: Merriweather
+      fonts:
+        - asset: fonts/Merriweather/Merriweather_24pt-Regular.ttf
+          weight: 400
+        - asset: fonts/Merriweather/Merriweather_24pt-Bold.ttf
+          weight: 700
+        - asset: fonts/Merriweather/Merriweather_24pt-Italic.ttf
+          style: italic
+        - asset: fonts/Merriweather/Merriweather_24pt-BoldItalic.ttf
+          weight: 700
+          style: italic
+        - asset: fonts/Merriweather/Merriweather_24pt-Light.ttf
+          weight: 300
+        - asset: fonts/Merriweather/Merriweather_24pt-LightItalic.ttf
+          weight: 300
+          style: italic
+        - asset: fonts/Merriweather/Merriweather_24pt-Medium.ttf
+          weight: 500
+        - asset: fonts/Merriweather/Merriweather_24pt-MediumItalic.ttf
+          weight: 500
+          style: italic
+        - asset: fonts/Merriweather/Merriweather_24pt-ExtraBold.ttf
+          weight: 800
+        - asset: fonts/Merriweather/Merriweather_24pt-ExtraBoldItalic.ttf
+          weight: 800
+          style: italic

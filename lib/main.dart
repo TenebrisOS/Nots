@@ -10,15 +10,17 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: const NavigationExample(),
-        theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.green,
-              brightness: Brightness.dark,
-            ),
-            useMaterial3: true,
-            fontFamily: 'Merriweather'));
+      debugShowCheckedModeBanner: false,
+      home: const NavigationExample(),
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.green,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+        fontFamily: 'Merriweather',
+      ),
+    );
   }
 }
 
@@ -39,38 +41,42 @@ class _NavigationExampleState extends State<NavigationExample> {
   final NoteTxtStorageService _noteStorage = NoteTxtStorageService();
   List<NoteMetadata> _noteMetadatas = [];
   bool _isLoadingNotes = true;
-  // ---- End Note Storage Integration --- -
 
   @override
   void initState() {
     super.initState();
-    _loadNotesMetadata(); // Load notes when the widget initializes
+    _loadNotesMetadata();
   }
 
   Future<void> _loadNotesMetadata() async {
-    if (!mounted) return; // Defensive check
+    if (!mounted) return;
     setState(() => _isLoadingNotes = true);
-    _noteMetadatas = await _noteStorage.getAllNoteMetadata();
-    // Sort them by update date, newest first
-    _noteMetadatas.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    if (!mounted) return; // Defensive check
-    setState(() => _isLoadingNotes = false);
+
+    final notes = await _noteStorage.getAllNoteMetadata();
+    notes.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
+    if (!mounted) return;
+    setState(() {
+      _noteMetadatas = notes;
+      _isLoadingNotes = false;
+    });
   }
 
   void _showAddNoteDialog() {
     final titleController = TextEditingController();
     final contentController = TextEditingController();
+    bool isSaving = false;
 
-    showDialog(
+    showDialog<bool>(
       context: context,
-      barrierDismissible: false, // Prevent dismissing by tapping outside during save
-      builder: (BuildContext dialogContext) { // Use dialogContext for actions inside the dialog
+      barrierDismissible: !isSaving,
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('Add New Note'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
+              children: [
                 TextField(
                   controller: titleController,
                   decoration: const InputDecoration(labelText: 'Title'),
@@ -87,54 +93,60 @@ class _NavigationExampleState extends State<NavigationExample> {
               ],
             ),
           ),
-          actions: <Widget>[
+          actions: [
             TextButton(
-              child: const Text('Cancel'),
               onPressed: () {
-                Navigator.of(dialogContext).pop(); // Use dialogContext
-              },
-            ),
-            TextButton(
-              child: const Text('Save'),
-              onPressed: () async {
-                final title = titleController.text;
-                final content = contentController.text;
-
-                if (title.isNotEmpty || content.isNotEmpty) {
-                  // Pop the dialog FIRST, using its own context
-                  Navigator.of(dialogContext).pop();
-
-                  // Then perform async work and update state of the parent page
-                  await _noteStorage.createNote(
-                      title: title.isEmpty ? "Untitled Note" : title,
-                      content: content);
-
-                  // Check if the _NavigationExampleState widget is still mounted
-                  if (mounted) {
-                    await _loadNotesMetadata(); // Refresh the list
-                  }
-                } else {
-                  // If validation fails, use the ScaffoldMessenger from the main page's context
-                  // or the dialogContext if you want it to appear above the dialog.
-                  // For simplicity, using the main page's context (this.context or just context)
-                  if (mounted) { // Check if _NavigationExampleState is mounted
-                    ScaffoldMessenger.of(this.context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Title or content cannot be empty.')),
-                    );
-                  }
+                if (!isSaving) {
+                  Navigator.of(dialogContext).pop(false);
                 }
               },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (isSaving) return;
+
+                final title = titleController.text.trim();
+                final content = contentController.text.trim();
+
+                if (title.isEmpty && content.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Title or content cannot be empty.')),
+                  );
+                  return;
+                }
+
+                isSaving = true;
+                Navigator.of(dialogContext).pop(true);
+
+                try {
+                  await _noteStorage.createNote(
+                    title: title.isEmpty ? "Untitled Note" : title,
+                    content: content,
+                  );
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error saving note: $e')),
+                    );
+                  }
+                } finally {
+                  isSaving = false;
+                }
+              },
+              child: const Text('Save'),
             ),
           ],
         );
       },
-    ).then((_) {
-      // This block executes after the dialog is popped,
-      // regardless of how it was popped (Save, Cancel, barrier tap if enabled).
-      // This is the correct place to dispose controllers created for the dialog.
+    ).then((savedSuccessfully) async {
       titleController.dispose();
       contentController.dispose();
+
+      if (savedSuccessfully == true && mounted) {
+        await _loadNotesMetadata();
+      }
     });
   }
 
@@ -143,17 +155,20 @@ class _NavigationExampleState extends State<NavigationExample> {
     final fullNoteData = await _noteStorage.getFullNote(noteId);
     if (fullNoteData != null && mounted) {
       showDialog(
-          context: context, // Use the page's context
-          builder: (BuildContext dialogContext) => AlertDialog( // dialogContext for this specific dialog
-            title: Text(fullNoteData['title'] ?? 'Note'),
-            content: SingleChildScrollView(
-                child: Text(fullNoteData['content'] ?? '')),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Close'))
-            ],
-          ));
+        context: context,
+        builder: (BuildContext dialogContext) => AlertDialog(
+          title: Text(fullNoteData['title'] ?? 'Note'),
+          content: SingleChildScrollView(
+            child: Text(fullNoteData['content'] ?? ''),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not load note content.')),
@@ -164,13 +179,13 @@ class _NavigationExampleState extends State<NavigationExample> {
   Future<void> _deleteNote(String noteId) async {
     if (!mounted) return;
     final confirmDelete = await showDialog<bool>(
-      context: context, // Page's context
-      builder: (BuildContext dialogContext) { // dialogContext for this specific dialog
+      context: context,
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('Delete Note?'),
           content: const Text(
               'Are you sure you want to delete this note? This action cannot be undone.'),
-          actions: <Widget>[
+          actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
               child: const Text('Cancel'),
@@ -187,35 +202,24 @@ class _NavigationExampleState extends State<NavigationExample> {
 
     if (confirmDelete == true && mounted) {
       await _noteStorage.deleteNote(noteId);
-      await _loadNotesMetadata(); // Refresh the list
+      await _loadNotesMetadata();
     }
   }
 
   @override
   void dispose() {
     _settingsTextFieldController.dispose();
-    // _noteMetadatas and _noteStorage don't need explicit disposal unless they hold
-    // resources that Dart's garbage collector won't handle (like open streams not managed internally).
-    // The TextEditingControllers for the dialog are disposed in the .then() block.
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final bool isSmallScreen = MediaQuery.of(context).size.width < 600;
+    final theme = Theme.of(context);
+    final isSmallScreen = MediaQuery.of(context).size.width < 600;
 
-    String currentPageTitle = "Nots"; // Default, not really used if main AppBar is gone
-    if (currentPageIndex == 1) {
-      currentPageTitle = "Settings";
-    }
-
-    final List<Widget> pages = <Widget>[
-      /// Home page - MODIFIED TO SHOW NOTES
+    final pages = [
       _isLoadingNotes
-          ? Center(
-          child:
-          CircularProgressIndicator(color: theme.colorScheme.primary))
+          ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))
           : _noteMetadatas.isEmpty
           ? Center(
         child: Padding(
@@ -237,13 +241,10 @@ class _NavigationExampleState extends State<NavigationExample> {
           itemBuilder: (context, index) {
             final metadata = _noteMetadatas[index];
             return Card(
-              margin: const EdgeInsets.symmetric(
-                  vertical: 6.0, horizontal: 8.0),
+              margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 8.0),
               child: ListTile(
                 title: Text(
-                  metadata.title.isEmpty
-                      ? "Untitled Note"
-                      : metadata.title,
+                  metadata.title.isEmpty ? "Untitled Note" : metadata.title,
                   style: theme.textTheme.titleMedium
                       ?.copyWith(fontWeight: FontWeight.bold),
                   maxLines: 1,
@@ -258,8 +259,7 @@ class _NavigationExampleState extends State<NavigationExample> {
                 onTap: () => _openNoteDetails(metadata.id),
                 trailing: IconButton(
                   icon: Icon(Icons.delete_outline,
-                      color:
-                      theme.colorScheme.error.withOpacity(0.8)),
+                      color: theme.colorScheme.error.withOpacity(0.8)),
                   tooltip: 'Delete Note',
                   onPressed: () => _deleteNote(metadata.id),
                 ),
@@ -268,15 +268,14 @@ class _NavigationExampleState extends State<NavigationExample> {
           },
         ),
       ),
-
-      /// Settings page
+      // Settings Page
       SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(
               horizontal: isSmallScreen ? 16.0 : 24.0, vertical: 20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
+            children: [
               Text('Connectivity',
                   style: theme.textTheme.headlineSmall
                       ?.copyWith(fontWeight: FontWeight.bold)),
@@ -289,17 +288,18 @@ class _NavigationExampleState extends State<NavigationExample> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(children: <Widget>[
+                      Row(children: [
                         Expanded(
                             child: Text('Server hosting',
                                 style: theme.textTheme.titleMedium)),
                         Switch(
-                            value: serverHostingEnabled,
-                            onChanged: (bool value) {
-                              setState(() {
-                                serverHostingEnabled = value;
-                              });
-                            }),
+                          value: serverHostingEnabled,
+                          onChanged: (bool value) {
+                            setState(() {
+                              serverHostingEnabled = value;
+                            });
+                          },
+                        ),
                       ]),
                       const SizedBox(height: 12),
                       Text('Server Host Address:',
@@ -322,8 +322,6 @@ class _NavigationExampleState extends State<NavigationExample> {
                               : theme.disabledColor.withOpacity(0.05),
                           filled: true,
                         ),
-                        onChanged: serverHostingEnabled ? (text) {} : null,
-                        onSubmitted: serverHostingEnabled ? (text) {} : null,
                       ),
                     ],
                   ),
@@ -340,8 +338,8 @@ class _NavigationExampleState extends State<NavigationExample> {
                 elevation: 1.0,
                 margin: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 16.0),
-                  child: Row(children: <Widget>[
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(children: [
                     Expanded(
                         child: Text('Enable End-to-End Encryption',
                             style: theme.textTheme.titleMedium
@@ -351,8 +349,7 @@ class _NavigationExampleState extends State<NavigationExample> {
                 ),
               ),
               Padding(
-                padding:
-                const EdgeInsets.only(left: 16.0, top: 4.0, right: 16.0),
+                padding: const EdgeInsets.only(left: 16.0, top: 4.0, right: 16.0),
                 child: Text('This feature is currently unavailable.',
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: theme.disabledColor)),
@@ -366,9 +363,10 @@ class _NavigationExampleState extends State<NavigationExample> {
     return Scaffold(
       appBar: currentPageIndex == 1
           ? AppBar(
-          title: Text(currentPageTitle),
-          backgroundColor: theme.colorScheme.surfaceVariant,
-          elevation: 0)
+        title: const Text("Settings"),
+        backgroundColor: theme.colorScheme.surfaceVariant,
+        elevation: 0,
+      )
           : null,
       floatingActionButton: currentPageIndex == 0
           ? FloatingActionButton(
@@ -379,15 +377,12 @@ class _NavigationExampleState extends State<NavigationExample> {
       )
           : null,
       bottomNavigationBar: NavigationBar(
-        onDestinationSelected: (int index) {
-          setState(() {
-            currentPageIndex = index;
-          });
+        onDestinationSelected: (index) {
+          setState(() => currentPageIndex = index);
         },
         selectedIndex: currentPageIndex,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        elevation: 2.0,
-        destinations: const <Widget>[
+        destinations: const [
           NavigationDestination(
               selectedIcon: Icon(Icons.home_filled),
               icon: Icon(Icons.home_outlined),

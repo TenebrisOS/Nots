@@ -4,8 +4,8 @@
 <div align="left">
 <img src=".github/assets/logo.jpg" style="width:30%;">
 </div>
-**Nots** is an open-source note-taking app designed primarly for Android, with **privacy**, **simplicity**, and **customization** in mind.  
-It will later on feature **self-hosted encrypted storage**, **Material 3 design**, and **colorful themes**.
+Nots is an open-source note-taking app designed primarly for Android, with privacy, simplicity, and customization in mind.  
+It will later on feature self-hosted encrypted storage, Material 3 design, and colorful themes.
 
 ## Features
 - [ ] Dark / light themes

@@ -23,4 +23,4 @@ Open source noting android app with self host encrypted online storage.
 - Solana : ```UDyMrbQh5LTBXAT3K22jRZCfnLpw4CwztiYcXBtvd4t```
   
 ## Credits
-This project was created by [TenebrisOS](https://github.com/TenebrisOS) with the use of [Henrik's valorant API](https://docs.henrikdev.xyz/)
+This project was created and been mantained by [TenebrisOS](https://github.com/TenebrisOS)

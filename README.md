@@ -1,4 +1,3 @@
-# Nots
 > [!WARNING]
 > The project is still under unstable development. Expect bugs and breaking changes
 <div align="left">

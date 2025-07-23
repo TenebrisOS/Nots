@@ -13,11 +13,9 @@ It will later on feature self-hosted encrypted storage and colorful themes.
 - [ ] Encrypted storing (local/online)
 
 ## Galery
-<div align="left">
+<div align="center">
 <img src=".github/assets/sc6.png" style="width:30%;">
-</div>
-<div align="right">
-<img src=".github/assets/sc4.png" style="width:30%;">
+<img src=".github/assets/sc3.png" style="width:30%;">
 </div>
 
 ## Platforms Support

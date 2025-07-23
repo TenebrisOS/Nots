@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-// Make sure these import paths are correct for your project structure
-import 'notes_system.dart'; // Assuming NoteMetadata might be implicitly defined here or in note_storage.dart
+import 'notes_system.dart';
 import 'note_storage.dart';
 
 void main() => runApp(const App());

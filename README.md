@@ -11,6 +11,7 @@ It will later on feature self-hosted encrypted storage and colorful themes.
 - [ ] Material 3 colorful themes
 - [ ] Online self-host server
 - [ ] Encrypted storing (local/online)
+- [ ] Note Sharing
       
 ## Platforms Support
 - [x] Android

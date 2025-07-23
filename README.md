@@ -24,6 +24,9 @@ It will later on feature self-hosted encrypted storage and colorful themes.
 - Bitcoin : ```bc1qfxg9wg97vklzselnayy0eutk5t9cpy048jmzzf```
 - Ethereum : ```0x859477061053a5a6a72466fee128fbdff21a34ba```
 - Solana : ```UDyMrbQh5LTBXAT3K22jRZCfnLpw4CwztiYcXBtvd4t```
-  
+
+## License
+This project is licensed under the [GNU General Public License v3.0](LICENSE).
+
 ## Credits
 This project was created and been mantained by [TenebrisOS](https://github.com/TenebrisOS)

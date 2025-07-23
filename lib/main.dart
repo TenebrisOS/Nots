@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'ui/home_screen.dart'; // Import the new home screen
+import 'ui/home_screen.dart';
 
 void main() => runApp(const App());
 

@@ -1,15 +1,13 @@
-// lib/services/note_storage_service.dart
-import '../models/note_metadata.dart'; // Import the NoteMetadata model
+import '../models/note_metadata.dart';
 
-// Mock/Placeholder for Note Storage
-// In a real app, this would interact with local DB, file system, or a remote API.
-class NoteStorageService { // Renamed from NoteTxtStorageService for generality
+class NoteStorageService {
   final List<NoteMetadata> _mockLocalNotes = [];
+  final Map<String, String> _mockLocalNoteContents = {};
   int _nextId = 1;
 
   // --- Local Notes Specific Methods ---
   Future<List<NoteMetadata>> getAllLocalNoteMetadata() async {
-    await Future.delayed(const Duration(milliseconds: 150)); // Simulate async
+    await Future.delayed(const Duration(milliseconds: 150));
     _mockLocalNotes.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     return List<NoteMetadata>.from(_mockLocalNotes);
   }
@@ -17,44 +15,53 @@ class NoteStorageService { // Renamed from NoteTxtStorageService for generality
   Future<Map<String, String>?> getLocalFullNote(String noteId) async {
     await Future.delayed(const Duration(milliseconds: 50));
     try {
-      final note = _mockLocalNotes.firstWhere((n) => n.id == noteId);
-      return {'title': note.title, 'content': 'This is the full local content for ${note.title}. Details...'};
+      final noteMetadata = _mockLocalNotes.firstWhere((n) => n.id == noteId);
+      final content = _mockLocalNoteContents[noteId]; // <-- RETRIEVE ACTUAL CONTENT
+
+      if (content != null) {
+        return {'title': noteMetadata.title, 'content': content};
+      } else {
+        // Fallback if content somehow wasn't stored (should not happen with createLocalNote change)
+        return {'title': noteMetadata.title, 'content': 'Content not found.'};
+      }
     } catch (e) {
+      // This catch is for when _mockLocalNotes.firstWhere fails (noteId not in metadata)
+      print("Error getting full note: Note metadata not found for ID $noteId. $e");
       return null;
     }
   }
 
   Future<void> createLocalNote({required String title, required String content}) async {
     await Future.delayed(const Duration(milliseconds: 100));
-    final newNote = NoteMetadata(
-      id: 'local$_nextId',
+    final noteId = 'local$_nextId';
+    final newNoteMetadata = NoteMetadata(
+      id: noteId,
       title: title.isEmpty ? "Untitled Local Note" : title,
       updatedAt: DateTime.now(),
     );
-    _mockLocalNotes.add(newNote);
+    _mockLocalNotes.add(newNoteMetadata);
+    _mockLocalNoteContents[noteId] = content;
     _nextId++;
-    print("Local Mock Note Created: ${newNote.title}");
+    print("Local Mock Note Created: ${newNoteMetadata.title} (ID: $noteId)");
   }
 
   Future<void> deleteLocalNote(String noteId) async {
     await Future.delayed(const Duration(milliseconds: 100));
     _mockLocalNotes.removeWhere((note) => note.id == noteId);
+    _mockLocalNoteContents.remove(noteId);
     print("Local Mock Note Deleted: $noteId");
   }
 
-  // --- Online Notes Methods (Placeholders) ---
-  // You would implement these to interact with your server
   Future<List<NoteMetadata>> getAllOnlineNoteMetadata(String serverUrl, String token) async {
-    await Future.delayed(const Duration(milliseconds: 500)); // Simulate network
+    await Future.delayed(const Duration(milliseconds: 500));
     print("Fetching online notes from $serverUrl with token: $token (mock)");
-    // Example: return [ NoteMetadata(id: 'online1', title: 'Synced Note', updatedAt: DateTime.now()) ];
-    return []; // Return empty list for now
+    return [];
   }
 
   Future<Map<String, String>?> getOnlineFullNote(String noteId, String serverUrl, String token) async {
     await Future.delayed(const Duration(milliseconds: 100));
     print("Fetching full online note $noteId from $serverUrl (mock)");
-    return null; // Placeholder
+    return null;
   }
 
   Future<void> createOnlineNote({

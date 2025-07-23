@@ -1,4 +1,3 @@
-// lib/ui/home_screen.dart
 import 'package:flutter/material.dart';
 import '../services/note_storage_service.dart';
 import 'local_notes_page.dart';

@@ -12,6 +12,8 @@ It will later on feature self-hosted encrypted storage and colorful themes.
 - [ ] Online self-host server
 - [ ] Encrypted storing (local/online)
 - [ ] Note Sharing
+
+If you want to experiment with unreleased new features, check out the [dev_branch](https://github.com/TenebrisOS/Nots/tree/dev)
       
 ## Platforms Support
 - [x] Android

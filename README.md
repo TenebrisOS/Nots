@@ -11,21 +11,21 @@ It will later on feature self-hosted encrypted storage and colorful themes.
 - [ ] Material 3 colorful themes
 - [ ] Online self-host server
 - [ ] Encrypted storing (local/online)
-
-## Galery
-<div align="center">
-<img src=".github/assets/sc6.png" style="width:30%;">
-<img src=".github/assets/sc3.png" style="width:30%;">
-</div>
-
+      
 ## Platforms Support
 - [x] Android
 - [ ] iOS (less probable)
 - [ ] Web
 - [ ] Linux / Windows
 
+## Galery
+<div align="left">
+<img src=".github/assets/sc6.png" style="width:30%;">
+<img src=".github/assets/sc3.png" style="width:30%;">
+</div>
+
 ## Contributions
-Contributions are highly encouraged and welcome. Please feel free to submit issues, pull requests, or discuss ideas. For further discussion, contact [TenebrisOS](deftonish@proton.me)
+Contributions are highly encouraged and welcome. Please feel free to submit issues, pull requests, or discuss ideas. For further discussion, contact deftonish@proton.me
 
 ## Donations
 - If you wish to help supporting my work, consider donating, small funds are always so caring.

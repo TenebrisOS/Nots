@@ -118,3 +118,5 @@ server/tokens.json
 
 /test/
 /macos/
+
+server/data/*

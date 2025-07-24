@@ -1,66 +1,71 @@
+// lib/services/note_storage_service.dart
 import '../models/note_metadata.dart';
+import './database_helper.dart'; // Import DatabaseHelper
+import 'package:uuid/uuid.dart'; // For generating unique IDs
+
+// For online functionality
+// import 'dart:convert';
+// import 'package:http/http.dart' as http;
 
 class NoteStorageService {
-  final List<NoteMetadata> _mockLocalNotes = [];
-  final Map<String, String> _mockLocalNoteContents = {};
-  int _nextId = 1;
+  final dbHelper = DatabaseHelper.instance;
+  final _uuid = const Uuid(); // Create a Uuid instance
 
-  // --- Local Notes Specific Methods ---
+  // --- Local Notes Specific Methods (Using SQLite) ---
+
   Future<List<NoteMetadata>> getAllLocalNoteMetadata() async {
-    await Future.delayed(const Duration(milliseconds: 150));
-    _mockLocalNotes.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    return List<NoteMetadata>.from(_mockLocalNotes);
+    final List<NoteDbModel> dbNotes = await dbHelper.queryAllNotesMetadata();
+    return dbNotes.map((dbNote) => NoteMetadata(
+      id: dbNote.id,
+      title: dbNote.title,
+      updatedAt: DateTime.parse(dbNote.updatedAt), // Parse from ISO string
+    )).toList();
   }
 
   Future<Map<String, String>?> getLocalFullNote(String noteId) async {
-    await Future.delayed(const Duration(milliseconds: 50));
-    try {
-      final noteMetadata = _mockLocalNotes.firstWhere((n) => n.id == noteId);
-      final content = _mockLocalNoteContents[noteId]; // <-- RETRIEVE ACTUAL CONTENT
-
-      if (content != null) {
-        return {'title': noteMetadata.title, 'content': content};
-      } else {
-        // Fallback if content somehow wasn't stored (should not happen with createLocalNote change)
-        return {'title': noteMetadata.title, 'content': 'Content not found.'};
-      }
-    } catch (e) {
-      // This catch is for when _mockLocalNotes.firstWhere fails (noteId not in metadata)
-      print("Error getting full note: Note metadata not found for ID $noteId. $e");
-      return null;
+    final NoteDbModel? dbNote = await dbHelper.queryNoteById(noteId);
+    if (dbNote != null) {
+      return {
+        'id': dbNote.id,
+        'title': dbNote.title,
+        'content': dbNote.content,
+        'updated_at': dbNote.updatedAt, // Pass as ISO string
+      };
     }
+    return null;
   }
 
   Future<void> createLocalNote({required String title, required String content}) async {
-    await Future.delayed(const Duration(milliseconds: 100));
-    final noteId = 'local$_nextId';
-    final newNoteMetadata = NoteMetadata(
+    final noteId = _uuid.v4(); // Generate a unique v4 UUID
+    final now = DateTime.now();
+    final newDbNote = NoteDbModel(
       id: noteId,
-      title: title.isEmpty ? "Untitled Local Note" : title,
-      updatedAt: DateTime.now(),
+      title: title.isEmpty ? "Untitled Note" : title,
+      content: content,
+      updatedAt: now.toIso8601String(), // Store as ISO8601 string
     );
-    _mockLocalNotes.add(newNoteMetadata);
-    _mockLocalNoteContents[noteId] = content;
-    _nextId++;
-    print("Local Mock Note Created: ${newNoteMetadata.title} (ID: $noteId)");
+    await dbHelper.insertNote(newDbNote);
+    print("Local DB Note Created: ${newDbNote.title} (ID: ${newDbNote.id})");
   }
 
   Future<void> deleteLocalNote(String noteId) async {
-    await Future.delayed(const Duration(milliseconds: 100));
-    _mockLocalNotes.removeWhere((note) => note.id == noteId);
-    _mockLocalNoteContents.remove(noteId);
-    print("Local Mock Note Deleted: $noteId");
+    await dbHelper.deleteNote(noteId);
+    print("Local DB Note Deleted: $noteId");
   }
 
+  // --- Online Notes Methods (Placeholders or your HTTP implementation) ---
+  // These remain as placeholders or your actual HTTP logic for now.
   Future<List<NoteMetadata>> getAllOnlineNoteMetadata(String serverUrl, String token) async {
     await Future.delayed(const Duration(milliseconds: 500));
     print("Fetching online notes from $serverUrl with token: $token (mock)");
+    // TODO: Implement actual HTTP call to your server
     return [];
   }
 
   Future<Map<String, String>?> getOnlineFullNote(String noteId, String serverUrl, String token) async {
     await Future.delayed(const Duration(milliseconds: 100));
     print("Fetching full online note $noteId from $serverUrl (mock)");
+    // TODO: Implement actual HTTP call
     return null;
   }
 
@@ -72,10 +77,12 @@ class NoteStorageService {
   }) async {
     await Future.delayed(const Duration(milliseconds: 200));
     print("Creating online note '$title' on $serverUrl (mock)");
+    // TODO: Implement actual HTTP call
   }
 
   Future<void> deleteOnlineNote(String noteId, String serverUrl, String token) async {
     await Future.delayed(const Duration(milliseconds: 200));
     print("Deleting online note $noteId on $serverUrl (mock)");
+    // TODO: Implement actual HTTP call
   }
 }

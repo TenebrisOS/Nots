@@ -10,6 +10,8 @@ import re
 def help():
     print("\033[1;36mAvailable Commands:\033[0m")
     print("  generate       Generate a 32-character token that can be used to authenticate from the mobile app")
+    print("  tokens         Outputs every generated token related to its user")
+    print("  remove         Removes a chosen token")
     print("  clear          Clear the screen")
     print("  exit           Exit the program")
     print("  help           Show this help message")
@@ -18,6 +20,7 @@ def token_to_json(file_path, token, username):
     if not os.path.exists(file_path):
         with open(file_path, 'w') as f:
             json.dump({}, f)
+            print("A new file has been created, make sure tokens.json permissions is correctly configured on your system. Otherwise, this will lead into a security issue.")
 
     with open(file_path, 'r') as f:
         try:
@@ -52,30 +55,47 @@ def validate_username(username):
 
     return True, "all good"
 
-
 def read_console():
     time.sleep(1)
     while True:
-        cmd = input("$> ")
+        cmd = input("$: ")
         if cmd == "exit" :
             print("Exiting...")
             sys.exit()
         elif cmd == "generate":
             username=input("Enter a new username: ")
-            var, why = validate_username(username)
-            if var== True:
-                print("Generating token for "+username+", make sure to preserve it somewhere safe. Loosing the token will result into the lost of all saved notes")
-                token=gen_token()
-                print(d.green+ token + d.nc)
-                print('Use command "clear" to hide the token!')
+            if (os.path.exists(datapath+username)):
+                print("Username already exists, please choose another one.")
             else:
-               print(why)
+                var, why = validate_username(username)
+                if var== True:
+                    print('Generating token for '+username+', make sure to preserve it somewhere safe. You still can recheck your tokens using the "token" command!')
+                    token=gen_token()
+                    print(d.green+ token + d.nc)
+                    print('Use command "clear" to hide the token!')
+                    token_to_json("tokens.json", token, username)
+                    os.makedirs(datapath+username, exist_ok=False)
+                else:
+                   print(why)
         elif cmd == "clear":
             os.system('cls' if os.name == 'nt' else 'clear')
         elif cmd == "help":
             help()
+        elif cmd == "tokens":
+            readtokens()
+        elif cmd == "remove":
+            removeatoken()
         else:
             print('Unknown command, type "help" to output every known command.')
+
+def removeatoken():
+    return
+
+def readtokens():
+    with open("tokens.json", "r") as f:
+        jsondata=json.load(f)
+    for token in jsondata:
+        print(token + "     " +jsondata[token])
 
 def gen_token():
     token = secrets.token_hex(16)
@@ -90,6 +110,21 @@ def status():
     response.status_code=200
     return response
 
+@app.route('/notes', methods=['POST'])
+def send_notes():
+    request_data=request.json
+    token=request_data.get("token")
+    with open("tokens.json", 'r') as f:
+        data=json.load(f)
+        if token in data:
+            response=make_response("Access Granted!")
+            response.status_code=200
+            return response
+        else:
+            response=make_response("Access Denied!")
+            response.status_code=401
+            return response
+
 @app.route("/")
 def hi():
     return "<p>Hi</p>"
@@ -99,6 +134,5 @@ if __name__ == "__main__":
         threading.Thread(target=read_console, daemon=True).start()
         print(d.info+"Launching server script on port: "+d.green+ sys.argv[1])
         app.run('127.0.0.1',sys.argv[1])
-else:
+    else:
         print("You must specify a port number!")
-

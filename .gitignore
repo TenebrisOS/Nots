@@ -107,7 +107,7 @@ lib/generated_plugin_registrant.dart
 
 # VS Code
 .vscode/
-
+server/tokens.json
 # ---------------------------
 # Misc
 # ---------------------------

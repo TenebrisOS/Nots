@@ -6,15 +6,12 @@
 Nots is an open-source note-taking app designed primarly for Android, with privacy, simplicity, and customization in mind.  
 It will later on feature self-hosted encrypted storage and colorful themes.
 
-This branch will mostly focus on the online encrypted storing system and other experimental upcoming features. Once a feature will be relatively stable, i will automatically update the master branch and make a release
-
 ## Features
-- [x] Basic stored notes
 - [ ] Dark / light themes
 - [ ] Material 3 colorful themes
 - [ ] Online self-host server
 - [ ] Encrypted storing (local/online)
-
+      
 ## Platforms Support
 - [x] Android
 - [ ] iOS (less probable)
@@ -23,9 +20,8 @@ This branch will mostly focus on the online encrypted storing system and other e
 
 ## Galery
 <div align="left">
-<img src=".github/assets/sc10.png" style="width:30%;">
-<img src=".github/assets/sc11.png" style="width:30%;">
-<img src=".github/assets/sc12.png" style="width:30%;">
+<img src=".github/assets/sc6.png" style="width:30%;">
+<img src=".github/assets/sc3.png" style="width:30%;">
 </div>
 
 ## Contributions

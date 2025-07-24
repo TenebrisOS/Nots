@@ -23,8 +23,9 @@ If you want to experiment unreleased new features, check out the [dev_branch](ht
 
 ## Galery
 <div align="left">
-<img src=".github/assets/sc6.png" style="width:30%;">
-<img src=".github/assets/sc3.png" style="width:30%;">
+<img src=".github/assets/sc10.png" style="width:30%;">
+<img src=".github/assets/sc11.png" style="width:30%;">
+<img src=".github/assets/sc12.png" style="width:30%;">
 </div>
 
 ## Contributions

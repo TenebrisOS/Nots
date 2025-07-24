@@ -16,8 +16,6 @@ This branch will focus on the online encrypted storage system and other experime
 - [ ] Encrypted storing (local/online)
 - [ ] Note Sharing
 
-If you want to experiment unreleased new features, check out the [dev_branch](https://github.com/TenebrisOS/Nots/tree/dev)
-
 ## Platforms Support
 - [x] Android
 - [ ] iOS (less probable)

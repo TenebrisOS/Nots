@@ -34,6 +34,7 @@ dependencies:
   # Add flutter_secure_storage for the token
   # flutter_secure_storage: ^8.0.0 # Use the latest version
   uuid: ^4.3.3
+  http: ^1.1.0 # For online storage (added previously)
   path_provider: ^2.1.2
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

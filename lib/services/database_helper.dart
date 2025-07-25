@@ -7,13 +7,13 @@ class NoteDbModel {
   final String id;
   final String title;
   final String content;
-  final String updatedAt; // Field name
+  final String updatedAt; // Store as ISO8601 String (camelCase in model, snake_case in DB map)
 
   NoteDbModel({
     required this.id,
     required this.title,
     required this.content,
-    required this.updatedAt, // Constructor parameter name
+    required this.updatedAt, // camelCase constructor parameter
   });
 
   Map<String, dynamic> toMap() {
@@ -21,16 +21,19 @@ class NoteDbModel {
       'id': id,
       'title': title,
       'content': content,
-      'updated_at': updatedAt, // DB key
+      'updated_at': updatedAt, // snake_case key for DB
     };
   }
 
   factory NoteDbModel.fromMap(Map<String, dynamic> map) {
+    if (map['id'] == null || map['title'] == null || map['content'] == null || map['updated_at'] == null) {
+      throw FormatException("Missing required fields in map for NoteDbModel. Received: $map");
+    }
     return NoteDbModel(
       id: map['id'] as String,
       title: map['title'] as String,
       content: map['content'] as String,
-      updatedAt: map['updated_at'] as String, // Ensure this matches constructor param name
+      updatedAt: map['updated_at'] as String, // map key is snake_case, constructor param is camelCase
     );
   }
 }
@@ -43,22 +46,18 @@ class DatabaseHelper {
   static const columnId = 'id';
   static const columnTitle = 'title';
   static const columnContent = 'content';
-  static const columnUpdatedAt = 'updated_at'; // ISO8601 String
+  static const columnUpdatedAt = 'updated_at'; // DB column name
 
-  // Make this a singleton class
   DatabaseHelper._privateConstructor();
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
 
-  // Only have a single app-wide reference to the database
   static Database? _database;
   Future<Database> get database async {
     if (_database != null) return _database!;
-    // Lazily instantiate the db the first time it is accessed
     _database = await _initDatabase();
     return _database!;
   }
 
-  // This opens the database (and creates it if it doesn't exist)
   _initDatabase() async {
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
     String path = p.join(documentsDirectory.path, _databaseName);
@@ -66,11 +65,9 @@ class DatabaseHelper {
       path,
       version: _databaseVersion,
       onCreate: _onCreate,
-      // onUpgrade: _onUpgrade, // For future schema migrations
     );
   }
 
-  // SQL code to create the database table
   Future _onCreate(Database db, int version) async {
     await db.execute('''
           CREATE TABLE $tableNotes (
@@ -82,8 +79,6 @@ class DatabaseHelper {
           ''');
   }
 
-  // --- CRUD Methods for Notes ---
-
   Future<int> insertNote(NoteDbModel note) async {
     Database db = await instance.database;
     return await db.insert(tableNotes, note.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
@@ -91,17 +86,16 @@ class DatabaseHelper {
 
   Future<List<NoteDbModel>> queryAllNotesMetadata() async {
     Database db = await instance.database;
-    // Order by updated_at descending to get newest notes first
     final List<Map<String, dynamic>> maps = await db.query(
         tableNotes,
-        columns: [columnId, columnTitle, columnUpdatedAt], // Only fetch metadata columns
+        columns: [columnId, columnTitle, columnUpdatedAt],
         orderBy: '$columnUpdatedAt DESC'
     );
     return List.generate(maps.length, (i) {
-      return NoteDbModel.fromMap({ // Reconstruct with dummy content for metadata only
+      return NoteDbModel.fromMap({
         'id': maps[i][columnId],
         'title': maps[i][columnTitle],
-        'content': '', // Not needed for metadata list
+        'content': '', // Not needed for metadata list, but NoteDbModel.fromMap expects it
         'updated_at': maps[i][columnUpdatedAt]
       });
     });
@@ -129,20 +123,4 @@ class DatabaseHelper {
       whereArgs: [id],
     );
   }
-
-// Future<int> updateNote(NoteDbModel note) async {
-//   Database db = await instance.database;
-//   return await db.update(
-//     tableNotes,
-//     note.toMap(),
-//     where: '$columnId = ?',
-//     whereArgs: [note.id],
-//   );
-// }
-
-// Close the database (optional, as sqflite handles this, but good practice if needed)
-// Future close() async {
-//   final db = await instance.database;
-//   db.close();
-// }
 }

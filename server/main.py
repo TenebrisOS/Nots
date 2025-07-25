@@ -133,6 +133,6 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         threading.Thread(target=read_console, daemon=True).start()
         print(d.info+"Launching server script on port: "+d.green+ sys.argv[1])
-        app.run('127.0.0.1',sys.argv[1])
+        app.run('0.0.0.0',sys.argv[1])
     else:
         print("You must specify a port number!")

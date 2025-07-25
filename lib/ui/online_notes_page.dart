@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
-import '../models/note_metadata.dart';
-import '../services/note_storage_service.dart';
+import 'package:nots/models/note_metadata.dart';
+import 'package:nots/services/note_storage_service.dart';
+import 'package:nots/widgets/add_note_dialog.dart';
 
 class OnlineNotesPage extends StatefulWidget {
   final NoteStorageService noteStorage;
   final String serverUrl;
-  final String accessToken;
+  final String accessToken; // This widget stores it as accessToken
+  final bool isOnlineServiceVerified;
 
   const OnlineNotesPage({
     super.key,
     required this.noteStorage,
     required this.serverUrl,
-    required this.accessToken,
+    required this.accessToken, // Received as accessToken
+    required this.isOnlineServiceVerified,
   });
 
   @override
@@ -20,185 +23,285 @@ class OnlineNotesPage extends StatefulWidget {
 
 class _OnlineNotesPageState extends State<OnlineNotesPage> {
   List<NoteMetadata> _onlineNotes = [];
-  bool _isLoading = true;
+  bool _isLoading = false;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    // No need to check widget.serverUrl.isNotEmpty here for initial loading state
-    // _fetchOnlineNotes will handle it.
-    _fetchOnlineNotes();
+    _updateStateBasedOnVerification();
   }
 
   @override
   void didUpdateWidget(covariant OnlineNotesPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // If serverUrl or accessToken changes, refetch
-    if (widget.serverUrl != oldWidget.serverUrl || widget.accessToken != oldWidget.accessToken) {
-      _fetchOnlineNotes();
+    if (widget.isOnlineServiceVerified != oldWidget.isOnlineServiceVerified ||
+        (widget.isOnlineServiceVerified &&
+            (widget.serverUrl != oldWidget.serverUrl ||
+                widget.accessToken != oldWidget.accessToken))) { // Check widget.accessToken
+      _updateStateBasedOnVerification();
     }
   }
 
-  Future<void> _fetchOnlineNotes() async {
-    if (!mounted) return;
+  void _updateStateBasedOnVerification() {
+    if (widget.isOnlineServiceVerified) {
+      if (widget.serverUrl.isNotEmpty && widget.accessToken.isNotEmpty) { // Check widget.accessToken
+        _loadOnlineNotesMetadata();
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _onlineNotes = [];
+            _errorMessage =
+            "Online service is marked as verified, but server details are missing.";
+          });
+        }
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _onlineNotes = [];
+          if (widget.serverUrl.isEmpty || widget.accessToken.isEmpty) { // Check widget.accessToken
+            _errorMessage =
+            "Online sync is not configured. Please check settings.";
+          } else {
+            _errorMessage =
+            "Server connection not verified or details are incorrect. Please check settings.";
+          }
+        });
+      }
+    }
+  }
 
-    if (widget.serverUrl.trim().isEmpty) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = null; // Clear previous errors
-        _onlineNotes = []; // Clear previous notes
-        // Message will be handled by the build method's check
-      });
+  Future<void> _loadOnlineNotesMetadata() async {
+    if (!widget.isOnlineServiceVerified ||
+        widget.serverUrl.isEmpty ||
+        widget.accessToken.isEmpty) { // Check widget.accessToken
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _onlineNotes = [];
+          if (widget.serverUrl.isEmpty || widget.accessToken.isEmpty) { // Check widget.accessToken
+            _errorMessage =
+            "Cannot load notes: Online sync details are missing.";
+          } else {
+            _errorMessage = "Cannot load notes: Connection not verified.";
+          }
+        });
+      }
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
-      final notes = await widget.noteStorage.getAllOnlineNoteMetadata(widget.serverUrl, widget.accessToken);
-      if (!mounted) return;
-      setState(() {
-        _onlineNotes = notes;
-        _isLoading = false;
-      });
+      // Corrected: Pass widget.accessToken as 'token' to the service
+      final notes = await widget.noteStorage.getAllOnlineNoteMetadata(
+        widget.serverUrl,
+        widget.accessToken, // This is the value
+      );
+      if (mounted) {
+        setState(() {
+          _onlineNotes = notes;
+        });
+      }
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _errorMessage = "Error fetching notes: ${e.toString()}";
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Error loading online notes: ${e.toString()}";
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _createNewOnlineNote(String title, String content) async {
+    if (!widget.isOnlineServiceVerified) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  "Cannot create note: Not connected to server or connection unverified.")),
+        );
+      }
+      return;
+    }
+    if (mounted) setState(() => _isLoading = true);
+    try {
+      // Corrected: Pass widget.accessToken as 'token' to the service
+      await widget.noteStorage.createOnlineNote(
+        title: title,
+        content: content,
+        serverUrl: widget.serverUrl,
+        token: widget.accessToken, // Pass widget.accessToken as the 'token' parameter
+      );
+      _loadOnlineNotesMetadata(); // Refresh list
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text("Failed to create online note: ${e.toString()}")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteOnlineNote(String noteId) async {
+    if (!widget.isOnlineServiceVerified) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  "Cannot delete note: Not connected to server or connection unverified.")),
+        );
+      }
+      return;
+    }
+    if (mounted) setState(() => _isLoading = true);
+    try {
+      // Corrected: Pass widget.accessToken as 'token' to the service
+      await widget.noteStorage.deleteOnlineNote(
+        noteId,
+        widget.serverUrl,
+        widget.accessToken, // This is the value
+      );
+      _loadOnlineNotesMetadata();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Note deleted from server.")),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error deleting note: ${e.toString()}")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Online Notes"),
+        elevation: 0,
+        backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+      ),
+      body: _buildBody(),
+      floatingActionButton: widget.isOnlineServiceVerified
+          ? FloatingActionButton.extended(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (context) => AddNoteDialog(
+              onSave: (title, content) {
+                _createNewOnlineNote(title, content);
+              },
+            ),
+          );
+        },
+        icon: const Icon(Icons.add_comment_outlined),
+        label: const Text("New Online Note"),
+      )
+          : null,
+    );
+  }
 
-    // Case 1: Server URL not configured
-    if (widget.serverUrl.trim().isEmpty) {
+  Widget _buildBody() {
+    if (_isLoading && _onlineNotes.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null && _onlineNotes.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.cloud_off_outlined, // Icon for server not configured
-                size: 60,
-                color: theme.hintColor.withOpacity(0.7),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Please configure your server address in Settings to enable online notes.',
-                style: theme.textTheme.titleMedium?.copyWith(color: theme.hintColor),
-                textAlign: TextAlign.center,
-              ),
-            ],
+          child: Text(
+            _errorMessage!,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 16),
           ),
         ),
       );
     }
 
-    // Case 2: Loading
-    if (_isLoading) {
-      return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(color: theme.colorScheme.primary),
-              const SizedBox(height: 16),
-              Text("Fetching online notes...", style: theme.textTheme.bodyMedium)
-            ],
-          )
-      );
-    }
-
-    // Case 3: Error Message
-    if (_errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, color: Colors.redAccent, size: 48), // Error icon
-              const SizedBox(height: 16),
-              Text(
-                _errorMessage!,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.error),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-                onPressed: _fetchOnlineNotes,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.errorContainer,
-                  foregroundColor: theme.colorScheme.onErrorContainer,
-                ),
-              )
-            ],
-          ),
-        ),
-      );
-    }
-
-    // Case 4: No online notes found (but server is configured and no error)
     if (_onlineNotes.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.cloud_done_outlined, // Icon for empty state after successful fetch
-                size: 60,
-                color: theme.hintColor.withOpacity(0.7),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No online notes found.',
-                style: theme.textTheme.titleMedium?.copyWith(color: theme.hintColor),
-                textAlign: TextAlign.center,
-              ),
-              if (widget.serverUrl.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    "Connected to: ${widget.serverUrl}",
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor.withOpacity(0.5)),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-            ],
+          child: Text(
+            widget.isOnlineServiceVerified
+                ? "No online notes found. Create one!"
+                : "Online service is not available or not configured correctly. Please check Settings.",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Theme.of(context).hintColor, fontSize: 16),
           ),
         ),
       );
     }
 
-    // Case 5: Display list of online notes
-    // TODO: Build actual list view for online notes
-    return ListView.builder(
-      padding: const EdgeInsets.all(8.0),
-      itemCount: _onlineNotes.length,
-      itemBuilder: (context, index) {
-        final note = _onlineNotes[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 4.0),
-          child: ListTile(
-            leading: const Icon(Icons.cloud_queue_outlined), // Icon for each note item
-            title: Text(note.title.isEmpty ? "Untitled Online Note" : note.title),
-            subtitle: Text("Online - Updated: ${note.updatedAt.toLocal().toString().substring(0, 16)}"),
-            // TODO: Add onTap to open note and trailing delete icon
-          ),
-        );
-      },
+    return RefreshIndicator(
+      onRefresh: _loadOnlineNotesMetadata,
+      child: ListView.builder(
+        itemCount: _onlineNotes.length,
+        itemBuilder: (context, index) {
+          final note = _onlineNotes[index];
+          return ListTile(
+            title: Text(note.title.isNotEmpty ? note.title : "Untitled Note"),
+            subtitle: Text("Updated: ${note.updatedAt.toLocal().toString().substring(0, 16)}"),
+            onTap: () {
+              // TODO: Implement navigation to note detail page for online notes
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("Tapped on online note: ${note.title} (Detail view not implemented yet)")),
+              );
+            },
+            trailing: IconButton(
+              icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: const Text('Confirm Delete'),
+                      content: Text('Are you sure you want to delete "${note.title.isNotEmpty ? note.title : "Untitled Note"}" from the server? This action cannot be undone.'),
+                      actions: <Widget>[
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          child: const Text('Delete'),
+                          style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+                        ),
+                      ],
+                    );
+                  },
+                );
+                if (confirm == true) {
+                  _deleteOnlineNote(note.id);
+                }
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 }

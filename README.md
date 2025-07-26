@@ -24,9 +24,9 @@ This branch will focus on the online encrypted storage system and other experime
 
 ## Galery
 <div align="left">
-<img src=".github/assets/sc10.png" style="width:30%;">
-<img src=".github/assets/sc11.png" style="width:30%;">
-<img src=".github/assets/sc12.png" style="width:30%;">
+<img src=".github/assets/sc13.png" style="width:30%;">
+<img src=".github/assets/sc14.png" style="width:30%;">
+<img src=".github/assets/sc15.png" style="width:30%;">
 </div>
 
 ## Contributions

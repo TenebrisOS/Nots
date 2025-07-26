@@ -36,7 +36,6 @@ class _LocalNotesPageState extends State<LocalNotesPage> {
       if (!mounted) return;
       setState(() {
         _isLoadingNotes = false;
-        // Optionally, show an error message to the user
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error loading notes: $e')),
@@ -49,19 +48,13 @@ class _LocalNotesPageState extends State<LocalNotesPage> {
       context: context,
       barrierDismissible: true,
       builder: (BuildContext dialogContext) {
-        // dialogContext is the context specifically for the dialog
         return AddNoteDialog(
           onSave: (String title, String content) async {
-            // This callback is executed when AddNoteDialog calls widget.onSave
             try {
               await widget.noteStorage.createLocalNote(
                 title: title,
                 content: content,
               );
-              // After AddNoteDialog pops itself on success,
-              // or even if it doesn't pop itself and we pop it from here,
-              // we reload the notes.
-              // Note: AddNoteDialog's _trySaveNote now pops on success.
               if (mounted) {
                 await _loadLocalNotesMetadata();
                 ScaffoldMessenger.of(context).showSnackBar(

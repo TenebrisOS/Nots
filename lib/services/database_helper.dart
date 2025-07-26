@@ -1,57 +1,27 @@
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart' as p; // For p.join
-
-class NoteDbModel {
-  final String id;
-  final String title;
-  final String content;
-  final String updatedAt; // Store as ISO8601 String (camelCase in model, snake_case in DB map)
-
-  NoteDbModel({
-    required this.id,
-    required this.title,
-    required this.content,
-    required this.updatedAt, // camelCase constructor parameter
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'title': title,
-      'content': content,
-      'updated_at': updatedAt, // snake_case key for DB
-    };
-  }
-
-  factory NoteDbModel.fromMap(Map<String, dynamic> map) {
-    if (map['id'] == null || map['title'] == null || map['content'] == null || map['updated_at'] == null) {
-      throw FormatException("Missing required fields in map for NoteDbModel. Received: $map");
-    }
-    return NoteDbModel(
-      id: map['id'] as String,
-      title: map['title'] as String,
-      content: map['content'] as String,
-      updatedAt: map['updated_at'] as String, // map key is snake_case, constructor param is camelCase
-    );
-  }
-}
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart'; // For kDebugMode
 
 class DatabaseHelper {
-  static const _databaseName = "LocalNotes.db";
-  static const _databaseVersion = 1;
+  static const _dbName = "notes_app.db";
+  static const _dbVersion = 1;
 
-  static const tableNotes = 'notes';
-  static const columnId = 'id';
-  static const columnTitle = 'title';
-  static const columnContent = 'content';
-  static const columnUpdatedAt = 'updated_at'; // DB column name
+  static const String tableName = "notes";
+
+  static const String columnId = "_id";
+  static const String columnIdS = "id_s";
+  static const String columnTitle = "title";
+  static const String columnContent = "content";
+  static const String columnCreatedAt = "created_at";
+  static const String columnUpdatedAt = "updated_at";
 
   DatabaseHelper._privateConstructor();
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
 
   static Database? _database;
+
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDatabase();
@@ -60,67 +30,161 @@ class DatabaseHelper {
 
   _initDatabase() async {
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
-    String path = p.join(documentsDirectory.path, _databaseName);
+    String path = join(documentsDirectory.path, _dbName);
+    if (kDebugMode) {
+      print("Database path: $path");
+    }
     return await openDatabase(
       path,
-      version: _databaseVersion,
+      version: _dbVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
-  Future _onCreate(Database db, int version) async {
+  Future<void> _onCreate(Database db, int version) async {
+    if (kDebugMode) {
+      print("DatabaseHelper: _onCreate called for version $version");
+    }
     await db.execute('''
-          CREATE TABLE $tableNotes (
-            $columnId TEXT PRIMARY KEY,
-            $columnTitle TEXT NOT NULL,
-            $columnContent TEXT NOT NULL,
-            $columnUpdatedAt TEXT NOT NULL
-          )
-          ''');
+      CREATE TABLE $tableName (
+        $columnId INTEGER PRIMARY KEY AUTOINCREMENT,
+        $columnIdS TEXT UNIQUE NOT NULL,
+        $columnTitle TEXT NOT NULL,
+        $columnContent TEXT NOT NULL,
+        $columnCreatedAt TEXT NOT NULL,
+        $columnUpdatedAt TEXT NOT NULL
+      )
+    ''');
+    if (kDebugMode) {
+      print("DatabaseHelper: Table '$tableName' created successfully.");
+    }
   }
 
-  Future<int> insertNote(NoteDbModel note) async {
-    Database db = await instance.database;
-    return await db.insert(tableNotes, note.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (kDebugMode) {
+      print("DatabaseHelper: _onUpgrade called from $oldVersion to $newVersion");
+    }
   }
 
-  Future<List<NoteDbModel>> queryAllNotesMetadata() async {
+  Future<int> insert(Map<String, dynamic> row) async {
     Database db = await instance.database;
-    final List<Map<String, dynamic>> maps = await db.query(
-        tableNotes,
-        columns: [columnId, columnTitle, columnUpdatedAt],
-        orderBy: '$columnUpdatedAt DESC'
-    );
-    return List.generate(maps.length, (i) {
-      return NoteDbModel.fromMap({
-        'id': maps[i][columnId],
-        'title': maps[i][columnTitle],
-        'content': '', // Not needed for metadata list, but NoteDbModel.fromMap expects it
-        'updated_at': maps[i][columnUpdatedAt]
-      });
-    });
+    if (kDebugMode) {
+      print("DatabaseHelper: Inserting into $tableName: $row");
+    }
+    try {
+      return await db.insert(tableName, row, conflictAlgorithm: ConflictAlgorithm.replace);
+    } catch (e) {
+      if (kDebugMode) {
+        print("DatabaseHelper: Error inserting into $tableName: $e");
+        print("Row data was: $row");
+      }
+      rethrow;
+    }
   }
 
-  Future<NoteDbModel?> queryNoteById(String id) async {
+  Future<List<Map<String, dynamic>>> queryAllNoteMetadata() async {
     Database db = await instance.database;
+    if (kDebugMode) {
+      print("DatabaseHelper: Querying all metadata from $tableName");
+    }
+    try {
+      return await db.query(
+        tableName,
+        columns: [columnIdS, columnTitle, columnUpdatedAt],
+        orderBy: "$columnUpdatedAt DESC", // Show newest first
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print("DatabaseHelper: Error querying metadata from $tableName: $e");
+      }
+      if (e.toString().contains("no such table")) {
+        return []; // Or rethrow if this shouldn't happen silently
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>?> queryFullNote(String idS) async {
+    Database db = await instance.database;
+    if (kDebugMode) {
+      print("DatabaseHelper: Querying full note with id_s $idS from $tableName");
+    }
     List<Map<String, dynamic>> maps = await db.query(
-        tableNotes,
-        where: '$columnId = ?',
-        whereArgs: [id],
-        limit: 1
+      tableName,
+      where: '$columnIdS = ?',
+      whereArgs: [idS],
     );
     if (maps.isNotEmpty) {
-      return NoteDbModel.fromMap(maps.first);
+      return maps.first;
     }
     return null;
   }
 
-  Future<int> deleteNote(String id) async {
+  Future<int> update(Map<String, dynamic> row) async {
     Database db = await instance.database;
-    return await db.delete(
-      tableNotes,
-      where: '$columnId = ?',
-      whereArgs: [id],
-    );
+    String idS = row[columnIdS] as String;
+    if (kDebugMode) {
+      print("DatabaseHelper: Updating row with id_s $idS in $tableName: $row");
+    }
+    try {
+      return await db.update(
+        tableName,
+        row,
+        where: '$columnIdS = ?',
+        whereArgs: [idS],
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print("DatabaseHelper: Error updating $tableName for id_s $idS: $e");
+        print("Row data was: $row");
+      }
+      rethrow;
+    }
+  }
+
+
+  Future<int> delete(String idS) async {
+    Database db = await instance.database;
+    if (kDebugMode) {
+      print("DatabaseHelper: Deleting row with id_s $idS from $tableName");
+    }
+    try {
+      return await db.delete(
+        tableName,
+        where: '$columnIdS = ?',
+        whereArgs: [idS],
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print("DatabaseHelper: Error deleting from $tableName for id_s $idS: $e");
+      }
+      rethrow;
+    }
+  }
+
+  Future close() async {
+    final db = await instance.database;
+    _database = null;
+    db.close();
+    if (kDebugMode) {
+      print("DatabaseHelper: Database closed.");
+    }
+  }
+
+  Future<void> deleteDatabaseFile() async {
+    Directory documentsDirectory = await getApplicationDocumentsDirectory();
+    String path = join(documentsDirectory.path, _dbName);
+    if (await databaseExists(path)) {
+      if (kDebugMode) {
+        print("DatabaseHelper: Deleting database file at $path");
+      }
+      await deleteDatabase(path);
+      _database = null;
+    } else {
+      if (kDebugMode) {
+        print("DatabaseHelper: Database file at $path does not exist. Nothing to delete.");
+      }
+    }
   }
 }

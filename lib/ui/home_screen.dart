@@ -181,8 +181,8 @@ class _HomeScreenState extends State<HomeScreen> {
   List<NavigationDestination> _buildDestinations() {
     final destinations = [
       const NavigationDestination(
-        selectedIcon: Icon(Icons.folder_special_rounded),
-        icon: Icon(Icons.folder_special_outlined),
+        selectedIcon: Icon(Icons.folder),
+        icon: Icon(Icons.folder_outlined),
         label: 'Local',
       ),
     ];

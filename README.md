@@ -10,7 +10,7 @@ It will later on feature self-hosted encrypted storage and colorful themes.
 - [x] Basic stored notes
 - [ ] Dark / light themes
 - [ ] Material 3 colorful themes
-- [x] Online self-host server (based on flask python on [server/](https://github.com/TenebrisOS/Nots/tree/dev/server)) (no security tests were done)
+- [ ] Online self-host server 
 - [ ] Encrypted storing (local/online)
 - [ ] Note Sharing
 

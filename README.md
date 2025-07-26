@@ -12,7 +12,7 @@ This branch will focus on the online encrypted storage system and other experime
 - [x] Basic stored notes
 - [ ] Dark / light themes
 - [ ] Material 3 colorful themes
-- [ ] Online self-host server
+- [x] Online self-host server (based on flask python on [server/](https://github.com/TenebrisOS/Nots/tree/dev/server)) (no security tests were done)
 - [ ] Encrypted storing (local/online)
 - [ ] Note Sharing
 

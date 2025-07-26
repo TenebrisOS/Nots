@@ -39,7 +39,7 @@ Contributions are highly encouraged and welcome. Please feel free to submit issu
 - Solana : ```UDyMrbQh5LTBXAT3K22jRZCfnLpw4CwztiYcXBtvd4t```
 
 ## License
-This project is licensed under the [GNU General Public License v3.0](LICENSE).
+This project is licensed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.html).
 
 ## Credits
 This project was created and been mantained by [TenebrisOS](https://github.com/TenebrisOS)

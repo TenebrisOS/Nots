@@ -10,7 +10,7 @@ It will later on feature self-hosted encrypted storage and colorful themes.
 - [x] Basic stored notes
 - [ ] Dark / light themes
 - [ ] Material 3 colorful themes
-- [ ] Online self-host server 
+- [x] Online self-host server (experimental)
 - [ ] Encrypted storing (local/online)
 - [ ] Note Sharing
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/note_metadata.dart';
 import '../services/note_storage_service.dart';
 import '../widgets/add_note_dialog.dart';
+
 class LocalNotesPage extends StatefulWidget {
   final NoteStorageService noteStorage;
 
@@ -12,7 +13,7 @@ class LocalNotesPage extends StatefulWidget {
 }
 
 class _LocalNotesPageState extends State<LocalNotesPage> {
-  List<NoteMetadata> _noteMetadatas = [];
+  List<NoteMetadata> _noteMetadata = [];
   bool _isLoadingNotes = true;
 
   @override
@@ -29,44 +30,57 @@ class _LocalNotesPageState extends State<LocalNotesPage> {
       final notes = await widget.noteStorage.getAllLocalNoteMetadata();
       if (!mounted) return;
       setState(() {
-        _noteMetadatas = notes;
+        _noteMetadata = notes;
         _isLoadingNotes = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoadingNotes = false;
-        // Optionally, show an error message to the user
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading notes: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading notes: $e')));
     }
   }
 
-  void _showAddNoteDialog() {
-    showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      builder: (BuildContext dialogContext) {
-        // dialogContext is the context specifically for the dialog
-        return AddNoteDialog(
-          onSave: (String title, String content) async {
-            // This callback is executed when AddNoteDialog calls widget.onSave
+  Future<void> _openNoteDialog({
+    NoteMetadata? noteMetadata,
+    String? content,
+  }) async {
+    final bool isEditing = noteMetadata != null;
+
+    final result = await Navigator.push<bool?>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddNoteDialog(
+          noteId: isEditing ? noteMetadata.id : null,
+          initialTitle: isEditing ? noteMetadata.title : '',
+          initialContent: content,
+          onSave: (String title, String content, {String? noteId}) async {
             try {
-              await widget.noteStorage.createLocalNote(
-                title: title,
-                content: content,
-              );
-              // After AddNoteDialog pops itself on success,
-              // or even if it doesn't pop itself and we pop it from here,
-              // we reload the notes.
-              // Note: AddNoteDialog's _trySaveNote now pops on success.
+              if (noteId != null) {
+                await widget.noteStorage.updateLocalNote(
+                  id: noteId,
+                  title: title,
+                  content: content,
+                );
+              } else {
+                await widget.noteStorage.createLocalNote(
+                  title: title,
+                  content: content,
+                );
+              }
+              await _loadLocalNotesMetadata();
               if (mounted) {
-                await _loadLocalNotesMetadata();
+                Navigator.of(context).pop(true);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Note saved successfully!'),
+                  SnackBar(
+                    content: Text(
+                      isEditing
+                          ? 'Note updated successfully!'
+                          : 'Note saved successfully!',
+                    ),
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
@@ -81,45 +95,52 @@ class _LocalNotesPageState extends State<LocalNotesPage> {
                   ),
                 );
               }
-              // Rethrow or handle if AddNoteDialog needs to know about the failure
-              // to prevent it from popping, but AddNoteDialog handles its loading state.
+              rethrow;
             }
           },
-        );
-      },
-    ).then((savedSuccessfully) {
-      // This 'then' block is called after the dialog is popped.
-      // 'savedSuccessfully' comes from Navigator.of(context).pop(true/false) in AddNoteDialog.
-      if (savedSuccessfully == true) {
-        // Actions here are optional as onSave already reloaded notes.
-        print("AddNoteDialog reported successful save and was popped.");
-      } else if (savedSuccessfully == false) {
-        print("AddNoteDialog was cancelled or reported save failure and was popped.");
-      } else {
-        print("AddNoteDialog was dismissed (e.g., barrier tap).");
-      }
-    });
+        ),
+      ),
+    );
   }
 
   Future<void> _openLocalNoteDetails(String noteId) async {
     if (!mounted) return;
-    // Consider adding a loading indicator for this operation
     try {
       final fullNoteData = await widget.noteStorage.getLocalFullNote(noteId);
       if (fullNoteData != null && mounted) {
-        showDialog(
-          context: context,
-          builder: (BuildContext dialogContext) => AlertDialog(
-            title: Text(fullNoteData['title']?.isNotEmpty == true ? fullNoteData['title']! : 'Untitled Note'),
-            content: SingleChildScrollView(
-              child: Text(fullNoteData['content'] ?? ''),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Close'),
+        final noteMetadata = _noteMetadata.firstWhere(
+          (note) => note.id == noteId,
+        );
+
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => Scaffold(
+              appBar: AppBar(
+                title: Text(
+                  noteMetadata.title.isNotEmpty
+                      ? noteMetadata.title
+                      : 'Untitled Note',
+                ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () async {
+                      await _openNoteDialog(
+                        noteMetadata: noteMetadata,
+                        content: fullNoteData['content'],
+                      );
+                    },
+                  ),
+                ],
               ),
-            ],
+              body: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  fullNoteData['content'] ?? '',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              ),
+            ),
           ),
         );
       } else if (mounted) {
@@ -129,9 +150,9 @@ class _LocalNotesPageState extends State<LocalNotesPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error opening note: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error opening note: $e')));
       }
     }
   }
@@ -144,7 +165,9 @@ class _LocalNotesPageState extends State<LocalNotesPage> {
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('Delete Local Note?'),
-          content: const Text('Are you sure you want to delete this local note? This action cannot be undone.'),
+          content: const Text(
+            'Are you sure you want to delete this local note? This action cannot be undone.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -153,7 +176,7 @@ class _LocalNotesPageState extends State<LocalNotesPage> {
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
               child: const Text('Delete'),
-              style: TextButton.styleFrom(foregroundColor: Colors.redAccent), // Or theme.colorScheme.error
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
             ),
           ],
         );
@@ -163,17 +186,20 @@ class _LocalNotesPageState extends State<LocalNotesPage> {
     if (confirmDelete == true && mounted) {
       try {
         await widget.noteStorage.deleteLocalNote(noteId);
-        await _loadLocalNotesMetadata(); // Refresh list
+        await _loadLocalNotesMetadata();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Note deleted.'), behavior: SnackBarBehavior.floating),
+            const SnackBar(
+              content: Text('Note deleted.'),
+              behavior: SnackBarBehavior.floating,
+            ),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error deleting note: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error deleting note: $e')));
         }
       }
     }
@@ -184,41 +210,50 @@ class _LocalNotesPageState extends State<LocalNotesPage> {
     final theme = Theme.of(context);
 
     if (_isLoadingNotes) {
-      return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
+      return Center(
+        child: CircularProgressIndicator(color: theme.colorScheme.primary),
+      );
     }
 
     Widget content;
-    if (_noteMetadatas.isEmpty) {
+    if (_noteMetadata.isEmpty) {
       content = Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.note_add_outlined, size: 60, color: theme.hintColor.withOpacity(0.6)),
+              Icon(Icons.note_add_outlined, size: 60, color: theme.hintColor),
               const SizedBox(height: 16.0),
               Text(
                 '"The faintest ink is more powerful than the strongest memory."',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleMedium?.copyWith(
-                    fontFamily: 'Merriweather', color: theme.hintColor.withOpacity(0.8)),
+                  fontFamily: 'Merriweather',
+                  color: theme.hintColor,
+                ),
               ),
               const SizedBox(height: 8.0),
               Text(
                 "- Chinese Proverb",
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                    fontFamily: 'Merriweather', color: theme.hintColor.withOpacity(0.7)),
+                  fontFamily: 'Merriweather',
+                  color: theme.hintColor,
+                ),
               ),
               const SizedBox(height: 24.0),
               ElevatedButton.icon(
                 icon: const Icon(Icons.add_circle_outline),
                 label: const Text('Create Your First Note'),
-                onPressed: _showAddNoteDialog,
+                onPressed: () => _openNoteDialog(),
                 style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -227,31 +262,51 @@ class _LocalNotesPageState extends State<LocalNotesPage> {
       content = RefreshIndicator(
         onRefresh: _loadLocalNotesMetadata,
         child: ListView.builder(
-          padding: const EdgeInsets.only(top: 8.0, left: 8.0, right: 8.0, bottom: 80.0), // Padding for FAB
-          itemCount: _noteMetadatas.length,
+          padding: const EdgeInsets.only(
+            top: 8.0,
+            left: 8.0,
+            right: 8.0,
+            bottom: 80.0,
+          ),
+          itemCount: _noteMetadata.length,
           itemBuilder: (context, index) {
-            final metadata = _noteMetadatas[index];
+            final metadata = _noteMetadata[index];
             return Card(
-              margin: const EdgeInsets.symmetric(vertical: 5.0, horizontal: 4.0),
+              margin: const EdgeInsets.symmetric(
+                vertical: 5.0,
+                horizontal: 4.0,
+              ),
               elevation: 1.5,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 8.0,
+                  horizontal: 16.0,
+                ),
                 title: Text(
                   metadata.title.isEmpty ? "Untitled Note" : metadata.title,
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 subtitle: Text(
                   'Updated: ${metadata.updatedAt.day}/${metadata.updatedAt.month}/${metadata.updatedAt.year} ${metadata.updatedAt.hour.toString().padLeft(2, '0')}:${metadata.updatedAt.minute.toString().padLeft(2, '0')}',
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.hintColor,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 onTap: () => _openLocalNoteDetails(metadata.id),
                 trailing: IconButton(
-                  icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error.withOpacity(0.85)),
+                  icon: Icon(
+                    Icons.delete_outline_rounded,
+                    color: theme.colorScheme.error,
+                  ),
                   tooltip: 'Delete Note',
                   onPressed: () => _deleteLocalNote(metadata.id),
                 ),
@@ -264,15 +319,15 @@ class _LocalNotesPageState extends State<LocalNotesPage> {
 
     return Scaffold(
       body: SafeArea(child: content),
-      floatingActionButton: _noteMetadatas.isEmpty && !_isLoadingNotes // Only show FAB if list is not empty or not loading
+      floatingActionButton: _noteMetadata.isEmpty && !_isLoadingNotes
           ? null
           : FloatingActionButton.extended(
-        onPressed: _showAddNoteDialog,
-        tooltip: 'Add Local Note',
-        elevation: 2.0,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text("New Note"),
-      ),
+              onPressed: () => _openNoteDialog(),
+              tooltip: 'Add Local Note',
+              elevation: 2.0,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text("New Note"),
+            ),
     );
   }
 }

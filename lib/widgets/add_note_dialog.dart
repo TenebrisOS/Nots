@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 
-// A typedef for the callback when a note is saved.
-// It passes the title and content back to the caller.
-typedef OnSaveNote = void Function(String title, String content);
+typedef OnSaveNote =
+    Future<void> Function(String title, String content, {String? noteId});
 
 class AddNoteDialog extends StatefulWidget {
   final OnSaveNote onSave;
+  final String? noteId;
+  final String? initialTitle;
+  final String? initialContent;
 
   const AddNoteDialog({
     super.key,
     required this.onSave,
+    this.noteId,
+    this.initialTitle,
+    this.initialContent,
   });
 
   @override
@@ -17,7 +22,7 @@ class AddNoteDialog extends StatefulWidget {
 }
 
 class _AddNoteDialogState extends State<AddNoteDialog> {
-  final _formKey = GlobalKey<FormState>(); // For basic validation
+  final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _contentController;
   bool _isLoading = false;
@@ -25,8 +30,8 @@ class _AddNoteDialogState extends State<AddNoteDialog> {
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController();
-    _contentController = TextEditingController();
+    _titleController = TextEditingController(text: widget.initialTitle);
+    _contentController = TextEditingController(text: widget.initialContent);
   }
 
   @override
@@ -42,23 +47,23 @@ class _AddNoteDialogState extends State<AddNoteDialog> {
       final content = _contentController.text.trim();
 
       if (title.isEmpty && content.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Title or content cannot be empty.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Title or content cannot be empty.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
         return;
       }
 
       setState(() => _isLoading = true);
 
       try {
-        // Simulate a slight delay if needed, or directly call onSave
-        // await Future.delayed(Duration(milliseconds: 300));
-        widget.onSave(title, content);
+        await widget.onSave(title, content, noteId: widget.noteId);
         if (mounted) {
-          Navigator.of(context).pop(true); // Pop with success
+          Navigator.of(context).pop(true);
         }
       } catch (e) {
         if (mounted) {
@@ -80,88 +85,83 @@ class _AddNoteDialogState extends State<AddNoteDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Add New Local Note'),
-      content: SingleChildScrollView(
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.noteId != null ? 'Edit Note' : 'New Note'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(false),
+        ),
+        actions: [
+          TextButton.icon(
+            icon: _isLoading
+                ? SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ),
+                  )
+                : const Icon(Icons.save),
+            label: Text(_isLoading ? 'Saving...' : 'Save'),
+            onPressed: _isLoading ? null : _trySaveNote,
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
+              const Text(
+                'Title',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  hintText: 'Enter note title (optional)',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  hintText: 'Enter a title (optional)',
+                  filled: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
                 textCapitalization: TextCapitalization.sentences,
-                validator: (value) {
-                  // Example: Basic validation, can be more complex
-                  // if (value == null || value.trim().isEmpty) {
-                  //   return 'Title cannot be empty if content is also empty.';
-                  // }
-                  return null; // Return null if valid
-                },
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _contentController,
-                decoration: const InputDecoration(
-                  labelText: 'Content',
-                  hintText: 'Start typing your note...',
-                  border: OutlineInputBorder(),
+              const SizedBox(height: 24),
+              const Text(
+                'Content',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: TextFormField(
+                  controller: _contentController,
+                  decoration: InputDecoration(
+                    hintText: 'Start typing your note...',
+                    filled: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  textCapitalization: TextCapitalization.sentences,
+                  maxLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
                 ),
-                textCapitalization: TextCapitalization.sentences,
-                maxLines: 5,
-                minLines: 3,
-                validator: (value) {
-                  // Example: Basic validation
-                  // if (value == null || value.trim().isEmpty) {
-                  //    if (_titleController.text.trim().isEmpty) {
-                  //      return 'Content cannot be empty if title is also empty.';
-                  //    }
-                  // }
-                  return null;
-                },
               ),
             ],
           ),
         ),
       ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: _isLoading ? null : () => Navigator.of(context).pop(false), // Pop with failure/cancel
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton.icon(
-          icon: _isLoading
-              ? SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(context).colorScheme.onPrimary),
-            ),
-          )
-              : const Icon(Icons.save_outlined),
-          label: Text(_isLoading ? 'Saving...' : 'Save'),
-          onPressed: _isLoading ? null : _trySaveNote,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            foregroundColor: Theme.of(context).colorScheme.onPrimary,
-          ),
-        ),
-      ],
     );
   }
-}
-
-// Helper function to show the dialog (optional, but convenient)
-Future<bool?> showAddNoteDialog(BuildContext context) async {
-  String? savedTitle;
-  String? savedContent;
-
-  return null; // Placeholder, as we'll call it directly
 }

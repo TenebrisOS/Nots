@@ -63,6 +63,7 @@ class _AddNoteDialogState extends State<AddNoteDialog> {
       try {
         await widget.onSave(title, content, noteId: widget.noteId);
         if (mounted) {
+          // This dialog handles its own dismissal after a successful save.
           Navigator.of(context).pop(true);
         }
       } catch (e) {

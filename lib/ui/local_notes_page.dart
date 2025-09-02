@@ -71,20 +71,6 @@ class _LocalNotesPageState extends State<LocalNotesPage> {
                   content: content,
                 );
               }
-              await _loadLocalNotesMetadata();
-              if (mounted) {
-                Navigator.of(context).pop(true);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      isEditing
-                          ? 'Note updated successfully!'
-                          : 'Note saved successfully!',
-                    ),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
             } catch (e) {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -101,6 +87,23 @@ class _LocalNotesPageState extends State<LocalNotesPage> {
         ),
       ),
     );
+
+    // After the AddNoteDialog is closed, check if a note was saved/edited
+    if (result == true) {
+      await _loadLocalNotesMetadata();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isEditing
+                  ? 'Note updated successfully!'
+                  : 'Note saved successfully!',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _openLocalNoteDetails(String noteId) async {
